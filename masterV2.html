@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link href="https://fonts.googleapis.com/css?family=Baloo+Thambi" rel="stylesheet">
+    <base target="_top">
+   <style>
+    #buzz{
+    position: absolute;
+    width: 505px;
+    height: 500px;
+    display: none;
+    top: 20vh; /* 30vh */
+    left: 30vw; /* 20vw */
+    border-radius: 50%;
+    background-color: red;
+    font-size: 100px;
+    font-family: 'Baloo Thambi', cursive;
+
+    }
+    #button:active{
+      transform: translateY(100px);
+      background-color: gray;
+    }
+    #name{
+    position: absolute;
+    width: 50vw;
+    height: 10vh;
+    font-size: 40px;
+    top: 50vh;
+    left: 20vw;
+    display: none;
+    }
+    #roomName{
+    position: absolute;
+    width: 50vw;
+    height: 10vh;
+    font-size: 40px;
+    top: 45vh;
+    left: 25vw;
+    display: initial;
+    }
+    #createRoom{
+    position: absolute;
+    width: 40vw;
+    height: 10vh;
+    top: 75vh;
+    left: 30vw;
+    display: initial;
+    }
+    #joinRoom{
+    position: absolute;
+    width: 40vw;
+    height: 10vh;
+    top: 60vh;
+    left: 30vw;
+    display: initial;
+    }
+    #go{
+    position: absolute;
+    width: 10vw;
+    height: 10vh;
+    top: 50vh;
+    left: 70vw;
+    display: none;
+    }
+    #refresh{
+      display: none;
+      position: absolute;
+      width: 40vw;
+      height: 10vh;
+      top: 50vh;
+      left: 30vw;
+      font-size: 200px;
+    }
+    #winner{
+      display: none;
+      position: absolute;
+      font-size: 50px;
+      font-family: 'Baloo Thambi' , cursive;
+      top: 30vh;
+      left: 30vw;
+    }
+
+   </style>
+  </head>
+  <body onbeforeunload="return warning()" onunload= "clearRoom()">
+    <center>
+        <t id="winner"></t>
+    <input id="name" type="text" placeholder="TEAM/PLAYER NAME"/>
+    <button id="buzz" onclick="buzz()">BUZZ</button>
+    <button id="go" class="w3-button  w3-xlarge w3-ripple w3-blue" onclick="next()"> GO </button>
+    <button id="refresh" class="w3-button  w3-xlarge w3-ripple w3-blue"  onclick="refreshBuzzers()"> REFRESH BUZZERS</button>
+    <button id="createRoom" class="w3-button  w3-xlarge w3-ripple w3-blue" onclick="makeRoom()"> OR CREATE ROOM </button>
+    <button id="joinRoom" class="w3-button  w3-xlarge w3-ripple w3-blue" onclick="joinRoom()"> JOIN ROOM </button>
+    <input id="roomName" type="text" placeholder="ROOM NAME"/>
+    </center>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    //establish global variables
+    var name = "";
+    var admin = false;
+    var globalRoomName = "";
+    var color = "red";
+    var i = 0;
+
+    //adjust UI if user is on a mobile device as soon as window loads
+    window.onload = function AdjustForDevice(){
+      if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+        document.getElementById('buzz').style.top = "35vh";
+        document.getElementById('buzz').style.left = "25vw";
+      }
+    }
+
+   function setPhaseTwo(a){
+
+     if (a == 'regular user'){
+       document.getElementById('roomName').style.display = 'none';
+       document.getElementById('createRoom').style.display = 'none';
+       document.getElementById('joinRoom').style.display = 'none';
+       document.getElementById('name').style.display = 'initial';
+       document.getElementById('go').style.display = 'initial';
+     }
+     else if (a == 'admin'){
+       document.getElementById('roomName').style.display = 'none';
+       document.getElementById('createRoom').style.display = 'none';
+       document.getElementById('joinRoom').style.display = 'none';
+       document.getElementById('winner').style.display = "initial";
+       document.getElementById('winner').innerHTML = "FIRST TO BUZZ IN:";
+       document.getElementById('refresh').style.display = 'initial';
+       admin = true;
+
+     }
+
+   }
+
+   function clearRoom(){
+
+     var socket = io();
+     socket.emit('clear room', globalRoomName);
+
+   }
+   function warning(){
+
+     return "ARE YOU SURE?";
+
+   }
+
+
+    //create a room when user clicks 'Create Room'
+    function makeRoom(){
+
+      var socket = io();
+      var inputName = document.getElementById('roomName').value;
+      globalRoomName = inputName;
+      socket.emit('create room',inputName);
+      socket.on('duplicate check', function(msg){
+
+        if (msg == "no duplicates"){
+          setPhaseTwo('admin');
+        }
+        else{
+          alert("Sorry, a room with that name already exists. Try a different name");
+        }
+
+
+      });
+
+
+    }
+
+    //join existing room when user clicks 'Join Room'
+    function joinRoom(){
+
+      var socket = io();
+      var inputName = document.getElementById('roomName').value;
+      socket.emit('join room',inputName);
+      socket.on('join response',function(msg){
+
+        if (msg == "active room"){
+          globalRoomName = inputName;
+          setPhaseTwo('regular user');
+        }
+        else{
+          alert("Sorry, that room doesn't exist");
+        }
+
+      });
+    }
+
+
+
+    //emit 'buzz' to server when user buzzes in
+    function buzz(){
+    var socket = io();
+    socket.emit('buzz',[name, globalRoomName]);
+    }
+
+    //setup UI for after initial name screen
+    function next(){
+     name = document.getElementById("name").value;
+     if (admin == true){
+       document.getElementById("go").style.display = "none";
+       document.getElementById("name").style.display = "none";
+       document.getElementById("refresh").style.display = "initial";
+     }
+     else{
+     document.getElementById("go").style.display = "none";
+     document.getElementById("name").style.display = "none";
+     document.getElementById("buzz").style.display = "initial";
+     if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+       document.getElementById('buzz').style.top = "35vh";
+       document.getElementById('buzz').style.left = "25vw";
+     }
+      }
+    }
+
+    //emit a refresh request to server when host wants to start a new round
+    function refreshBuzzers(){
+      var socket = io();
+      socket.emit('resetReq',['paramFiller', globalRoomName]);
+      document.getElementById("winner").innerHTML = "FIRST TO BUZZ IN:";
+    }
+
+  /*  function restarting(){
+      document.getElementById("buzz").style.backgroundColor = "red";
+      color = "red";
+      document.getElementById("buzz").disabled = false;
+    } */
+
+
+
+
+    //socket code for when server emits a return message
+    var socket = io();
+    socket.on('playerInfo',function(msg){
+    if (msg[1] == globalRoomName){
+      if (admin == true){
+        var row = document.getElementById("winner");
+        if (row.innerHTML == "FIRST TO BUZZ IN:"){
+          row.innerHTML = "FIRST TO BUZZ IN: " + msg[0];
+          console.log(msg[0]);
+        }
+      }
+      else{
+        var buzzer = document.getElementById("buzz");
+        console.log(color);
+        if (color == "red"){
+          color = "green";
+          if (msg[0] == name){
+            console.log("You buzzed in first");
+            buzzer.innerHTML = "You buzzed in first!";
+            buzzer.style.backgroundColor = "green";
+            buzzer.disabled = true;
+          }
+          else{
+            console.log(msg[0] + " buzzed in first!");
+            var str = msg[0] + " buzzed in first!";
+            var styledStr = str.fontcolor("black");
+            buzzer.innerHTML = styledStr;
+            buzzer.style.backgroundColor = "gray";
+            buzzer.disabled = true;
+          }
+
+        }
+        else{
+          console.log("someone else already buzzed");
+        }
+
+      }
+
+    }
+    });
+
+    socket.on('reset',function(msg){
+      if (msg[1] == globalRoomName){
+        console.log("reset func started");
+        document.getElementById("buzz").style.backgroundColor = "red";
+        color = "red";
+        document.getElementById("buzz").disabled = false;
+        document.getElementById("buzz").innerHTML = "BUZZ";
+      }
+    });
+
+
+
+
+    </script>
+  </body>
+</html>
